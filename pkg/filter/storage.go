@@ -9,14 +9,16 @@ import (
 	"sync"
 )
 
-const wasmRegistoryPath = "/wasm"
+var wasmRegistoryPath = "/wasm"
 
 type FilterStorage struct {
 	filters map[string]string
 	mux     sync.Mutex
 }
 
-func NewFilterStorage() *FilterStorage {
+func NewFilterStorage(path string) *FilterStorage {
+	wasmRegistoryPath = path
+
 	storage := &FilterStorage{
 		filters: map[string]string{},
 	}

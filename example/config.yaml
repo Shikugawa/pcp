@@ -1,3 +1,4 @@
+storage_path: "/wasm"
 runtime: "envoy.wasm.runtime.v8"
 nodes:
   - cluster: "cluster.local"

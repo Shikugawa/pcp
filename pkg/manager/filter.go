@@ -27,7 +27,7 @@ type EnvoyFilterManager struct {
 	Storage                    *filter.FilterStorage
 }
 
-func NewEnvoyFilterManager(runtime string) *EnvoyFilterManager {
+func NewEnvoyFilterManager(runtime string, wasmStoragePath string) *EnvoyFilterManager {
 	wasmRuntime = runtime
 
 	snap := snapshot.InitSnapShot()
@@ -36,7 +36,7 @@ func NewEnvoyFilterManager(runtime string) *EnvoyFilterManager {
 	manager := &EnvoyFilterManager{
 		registeredFilterSpecifiers: []filter.FilterSpecifier{},
 		SnapShot:                   &snap,
-		Storage:                    filter.NewFilterStorage(),
+		Storage:                    filter.NewFilterStorage(wasmStoragePath),
 	}
 
 	return manager

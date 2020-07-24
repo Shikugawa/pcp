@@ -52,7 +52,7 @@ func main() {
 	}
 
 	loadNodes(parsedConfig.Nodes)
-	manager := manager.NewEnvoyFilterManager(parsedConfig.Runtime)
+	manager := manager.NewEnvoyFilterManager(parsedConfig.Runtime, parsedConfig.StoragePath)
 
 	director := director.NewServer(manager).Start(admin)
 	xdsServer := xds.NewServer(manager).Start(listen)

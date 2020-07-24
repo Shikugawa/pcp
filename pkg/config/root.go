@@ -3,8 +3,9 @@ package config
 import "gopkg.in/yaml.v2"
 
 type Root struct {
-	Runtime string `yaml: "runtime"`
-	Nodes   []Node `yaml:"nodes"`
+	StoragePath string `yaml:"storage_path"`
+	Runtime     string `yaml: "runtime"`
+	Nodes       []Node `yaml:"nodes"`
 }
 
 func ParseConfigRoot(configRoot string) (*Root, error) {
