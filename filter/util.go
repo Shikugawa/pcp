@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func wasmCodePath(filter FilterSpecifier) string {
+func WasmCodePath(filter FilterSpecifier) string {
 	return wasmRegistoryPath + "/" + filter.FilterType + "/" + filter.FilterName + ".wasm"
 }
 

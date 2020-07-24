@@ -136,7 +136,7 @@ func (s *Server) uploadWasm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.envoyFilterManager.StorageDriver.Storage.Add(*specifier, wasmCode); err != nil {
+	if err := s.envoyFilterManager.Storage.Add(*specifier, wasmCode); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

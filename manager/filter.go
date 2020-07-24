@@ -5,27 +5,36 @@ import (
 	"log"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 
+	"github.com/Shikugawa/pcp/factory"
 	"github.com/Shikugawa/pcp/filter"
 	"github.com/Shikugawa/pcp/snapshot"
-	"github.com/Shikugawa/pcp/snapshot/config"
+)
+
+const wasmRuntime = "envoy.wasm.runtime.v8"
+
+var (
+	wasmFilterChainFactory = factory.NewHttpWasmFilterChainFactory(wasmRuntime)
+	httpFilterChainFactory = factory.NewHttpFilterChainFactory(wasmFilterChainFactory)
+	httpConnManagerFactory = factory.NewHttpConnectionManagerFactory(httpFilterChainFactory)
+	listenerFilterFactory  = factory.NewListenerFilterFactory(httpConnManagerFactory)
+	listenerFactory        = factory.NewListenerFactory(listenerFilterFactory)
 )
 
 type EnvoyFilterManager struct {
 	registeredFilterSpecifiers []filter.FilterSpecifier
 	SnapShot                   *snapshot.SnapShot
-	StorageDriver              *filter.WasmFilterStorageDriver
+	Storage                    *filter.FilterStorage
 }
 
 func NewEnvoyFilterManager(defaultNodes []*core.Node) *EnvoyFilterManager {
 	snap := snapshot.InitSnapShot()
-	snap.DefaultCache(defaultNodes)
+	snap.DefaultCache(defaultNodes, listenerFactory.Create())
 
 	manager := &EnvoyFilterManager{
 		registeredFilterSpecifiers: []filter.FilterSpecifier{},
 		SnapShot:                   &snap,
-		StorageDriver:              filter.NewWasmFilterStorageDriver("envoy.wasm.runtime.v8"),
+		Storage:                    filter.NewFilterStorage(),
 	}
 
 	return manager
@@ -41,26 +50,22 @@ func (h *EnvoyFilterManager) Append(filterType string, filterName string, nodes 
 		return nil
 	}
 
-	if !h.StorageDriver.Storage.ExistFilter(specifier) {
+	if !h.Storage.ExistFilter(specifier) {
 		log.Println(fmt.Sprintf("%s is not already uploaded", specifier.String()))
 		return nil
 	}
 
 	nextVersion := h.SnapShot.Version + 1
 	h.SnapShot.Version = nextVersion
-	h.registeredFilterSpecifiers = append(h.registeredFilterSpecifiers, specifier)
-
-	filters := h.currentFilters()
+	h.addRegisteredFilter(specifier)
 
 	for _, node := range nodes {
 		log.Println("Update " + node.Cluster + "/" + node.Id)
 		log.Println(h.registeredFilterSpecifiers)
 	}
 
-	listener, err := config.GetListener(config.HCM(filters))
-	if err != nil {
-		return err
-	}
+	wasmFilterChainFactory.Filters = h.registeredFilterSpecifiers
+	listener := listenerFactory.Create()
 
 	h.SnapShot.UpdateListener(listener, nodes, string(h.SnapShot.Version))
 	return nil
@@ -78,41 +83,34 @@ func (h *EnvoyFilterManager) RemoveFilter(filterType string, filterName string, 
 
 	nextVersion := h.SnapShot.Version + 1
 	h.SnapShot.Version = nextVersion
-	h.registeredFilterSpecifiers = func() []filter.FilterSpecifier {
-		var updatedFilters []filter.FilterSpecifier
-		for _, registeredSpecifier := range h.registeredFilterSpecifiers {
-			if specifier.FilterName == registeredSpecifier.FilterName && specifier.FilterType == registeredSpecifier.FilterType {
-				continue
-			}
-			updatedFilters = append(updatedFilters, registeredSpecifier)
-		}
-		return updatedFilters
-	}()
-
-	filters := h.currentFilters()
+	h.removeRegisteredFilter(specifier)
 
 	for _, node := range nodes {
 		log.Println("Update " + node.Cluster + "/" + node.Id)
 		log.Println(h.registeredFilterSpecifiers)
 	}
 
-	l, err := config.GetListener(config.HCM(filters))
-	if err != nil {
-		return err
-	}
+	wasmFilterChainFactory.Filters = h.registeredFilterSpecifiers
+	listener := listenerFactory.Create()
 
-	h.SnapShot.UpdateListener(l, nodes, string(h.SnapShot.Version))
+	h.SnapShot.UpdateListener(listener, nodes, string(h.SnapShot.Version))
 
 	return nil
 }
 
-func (h *EnvoyFilterManager) currentFilters() []*hcm.HttpFilter {
-	var filters []*hcm.HttpFilter
-	for _, specifier := range h.registeredFilterSpecifiers {
-		reg, _ := h.StorageDriver.EnvoyFilterConfig(specifier)
-		filters = append(filters, reg)
+func (h *EnvoyFilterManager) addRegisteredFilter(specifier filter.FilterSpecifier) {
+	h.registeredFilterSpecifiers = append(h.registeredFilterSpecifiers, specifier)
+}
+
+func (h *EnvoyFilterManager) removeRegisteredFilter(specifier filter.FilterSpecifier) {
+	var updatedFilters []filter.FilterSpecifier
+	for _, registeredSpecifier := range h.registeredFilterSpecifiers {
+		if specifier.FilterName == registeredSpecifier.FilterName && specifier.FilterType == registeredSpecifier.FilterType {
+			continue
+		}
+		updatedFilters = append(updatedFilters, registeredSpecifier)
 	}
-	return filters
+	h.registeredFilterSpecifiers = updatedFilters
 }
 
 func (h *EnvoyFilterManager) existFilter(filter filter.FilterSpecifier) bool {

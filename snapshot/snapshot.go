@@ -1,7 +1,6 @@
 package snapshot
 
 import (
-	"github.com/Shikugawa/pcp/snapshot/config"
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -21,12 +20,7 @@ func InitSnapShot() SnapShot {
 	}
 }
 
-func (s *SnapShot) DefaultCache(nodes []*core.Node) error {
-	defaultListener, err := config.GetListener(nil)
-	if err != nil {
-		return err
-	}
-
+func (s *SnapShot) DefaultCache(nodes []*core.Node, defaultListener *v2.Listener) error {
 	for _, node := range nodes {
 		snapshotCache := cache.NewSnapshot("1", nil, nil, nil, []types.Resource{defaultListener}, nil)
 		if err := s.Cache.SetSnapshot(node.Cluster+"/"+node.Id, snapshotCache); err != nil {
