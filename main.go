@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Shikugawa/pcp/director"
-	"github.com/Shikugawa/pcp/manager"
-	"github.com/Shikugawa/pcp/nodes"
-	"github.com/Shikugawa/pcp/xds"
+	"github.com/Shikugawa/pcp/pkg/director"
+	"github.com/Shikugawa/pcp/pkg/manager"
+	"github.com/Shikugawa/pcp/pkg/nodes"
+	"github.com/Shikugawa/pcp/pkg/xds"
 )
 
 func main() {

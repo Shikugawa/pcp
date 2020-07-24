@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Shikugawa/pcp/filter"
-	"github.com/Shikugawa/pcp/manager"
-	node "github.com/Shikugawa/pcp/nodes"
+	"github.com/Shikugawa/pcp/pkg/filter"
+	"github.com/Shikugawa/pcp/pkg/manager"
+	node "github.com/Shikugawa/pcp/pkg/nodes"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 )
 

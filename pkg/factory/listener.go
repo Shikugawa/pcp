@@ -10,7 +10,7 @@ import (
 	v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 
-	"github.com/Shikugawa/pcp/filter"
+	"github.com/Shikugawa/pcp/pkg/filter"
 	"github.com/envoyproxy/go-control-plane/pkg/conversion"
 	"github.com/golang/protobuf/ptypes"
 )

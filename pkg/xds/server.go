@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/Shikugawa/pcp/manager"
+	"github.com/Shikugawa/pcp/pkg/manager"
 
 	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	srv "github.com/envoyproxy/go-control-plane/pkg/server/v2"

@@ -6,9 +6,9 @@ import (
 
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 
-	"github.com/Shikugawa/pcp/factory"
-	"github.com/Shikugawa/pcp/filter"
-	"github.com/Shikugawa/pcp/snapshot"
+	"github.com/Shikugawa/pcp/pkg/factory"
+	"github.com/Shikugawa/pcp/pkg/filter"
+	"github.com/Shikugawa/pcp/pkg/snapshot"
 )
 
 const wasmRuntime = "envoy.wasm.runtime.v8"
