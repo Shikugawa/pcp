@@ -24,7 +24,7 @@ func NewServer(envoyFilterManager *manager.EnvoyFilterManager) *Server {
 }
 
 func (s *Server) enableFilter(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -58,7 +58,7 @@ func (s *Server) enableFilter(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) disableFilter(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
