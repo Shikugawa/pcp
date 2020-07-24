@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 
 	"github.com/Shikugawa/pcp/filter"
 	"github.com/Shikugawa/pcp/snapshot"

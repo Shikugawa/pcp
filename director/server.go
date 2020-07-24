@@ -1,7 +1,6 @@
 package director
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,11 +8,9 @@ import (
 	"strings"
 
 	"github.com/Shikugawa/pcp/filter"
-
-	node "github.com/Shikugawa/pcp/nodes"
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-
 	"github.com/Shikugawa/pcp/manager"
+	node "github.com/Shikugawa/pcp/nodes"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 )
 
 type Server struct {
@@ -119,27 +116,30 @@ func (s *Server) nodes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) uploadWasm(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost || r.Header.Get("Content-Type") != "application/wasm" {
+	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	var request WasmUploadRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	var wasmCode []byte
-	_, err := base64.StdEncoding.Decode(wasmCode, []byte(request.Contents))
+	file, reader, err := r.FormFile("wasm-code")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	s.envoyFilterManager.StorageDriver.Storage.Add(filter.FilterSpecifier{
-		FilterType: request.FilterType,
-		FilterName: request.FilterName,
-	}, wasmCode)
+	wasmCode := make([]byte, reader.Size)
+	file.Read(wasmCode)
+
+	specifier, err := filter.ParseFileName(reader.Filename)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := s.envoyFilterManager.StorageDriver.Storage.Add(*specifier, wasmCode); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 	return
@@ -159,6 +159,7 @@ func (s *Server) Start(port string) *http.Server {
 	}
 
 	go func() {
+		log.Println("Admin server started...")
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 			log.Fatalln("Server closed with error:", err)
 		}

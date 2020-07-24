@@ -2,10 +2,11 @@ package snapshot
 
 import (
 	"github.com/Shikugawa/pcp/snapshot/config"
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
-	cache "github.com/envoyproxy/go-control-plane/pkg/cache/v3"
+	cache "github.com/envoyproxy/go-control-plane/pkg/cache/v2"
 )
 
 type SnapShot struct {
@@ -35,7 +36,7 @@ func (s *SnapShot) DefaultCache(nodes []*core.Node) error {
 	return nil
 }
 
-func (s *SnapShot) UpdateListener(listener *listener.Listener, nodes []*core.Node, version string) error {
+func (s *SnapShot) UpdateListener(listener *v2.Listener, nodes []*core.Node, version string) error {
 	for _, node := range nodes {
 		shapshotCache := cache.NewSnapshot(version, nil, nil, nil, []types.Resource{listener}, nil)
 		if err := s.Cache.SetSnapshot(node.Cluster+"/"+node.Id, shapshotCache); err != nil {

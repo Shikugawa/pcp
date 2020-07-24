@@ -1,2 +1,5 @@
 build:
-	docker build -t shikugawa/pcp:latest .
+	docker build -t ayamaruyama/pcp:latest .
+
+build-v2:
+	docker build -t ayamaruyama/pcp:latest-v2 .

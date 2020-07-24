@@ -7,7 +7,7 @@ import (
 	wasm_http "github.com/Shikugawa/pcp/envoy/extensions/filters/http/wasm/v3"
 	wasm "github.com/Shikugawa/pcp/envoy/extensions/wasm/v3"
 	v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	"github.com/golang/protobuf/ptypes"
 )
 
@@ -36,7 +36,7 @@ func (f *WasmFilterStorageDriver) EnvoyFilterConfig(filter FilterSpecifier) (*hc
 				Specifier: &v3.AsyncDataSource_Local{
 					Local: &v3.DataSource{
 						Specifier: &v3.DataSource_Filename{
-							Filename: wasmCodeDir(filter),
+							Filename: wasmCodePath(filter),
 						},
 					},
 				},

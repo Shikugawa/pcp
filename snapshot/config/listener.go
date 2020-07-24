@@ -1,12 +1,11 @@
 package config
 
 import (
-	"github.com/Shikugawa/pcp/util"
-
-	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
-	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
-	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
-	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	v2 "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
+	listener "github.com/envoyproxy/go-control-plane/envoy/api/v2/listener"
+	route "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
+	hcm "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
 	"github.com/envoyproxy/go-control-plane/pkg/conversion"
 )
 
@@ -29,7 +28,7 @@ func HCM(filters []*hcm.HttpFilter) *hcm.HttpConnectionManager {
 	return &hcm.HttpConnectionManager{
 		StatPrefix: "ingress_http",
 		RouteSpecifier: &hcm.HttpConnectionManager_RouteConfig{
-			RouteConfig: &route.RouteConfiguration{
+			RouteConfig: &v2.RouteConfiguration{
 				Name: "local_route",
 				VirtualHosts: []*route.VirtualHost{
 					&route.VirtualHost{
@@ -59,7 +58,7 @@ func HCM(filters []*hcm.HttpFilter) *hcm.HttpConnectionManager {
 	}
 }
 
-func GetListener(h *hcm.HttpConnectionManager) (*listener.Listener, error) {
+func GetListener(h *hcm.HttpConnectionManager) (*v2.Listener, error) {
 	if h == nil {
 		h = HCM(nil)
 	}
@@ -69,14 +68,13 @@ func GetListener(h *hcm.HttpConnectionManager) (*listener.Listener, error) {
 		{
 			Filters: []*listener.Filter{{
 				Name: "envoy.http_connection_manager",
-				ConfigType: &listener.Filter_TypedConfig{
-					TypedConfig: util.MarshalAny(
-						"type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManagerr", config),
+				ConfigType: &listener.Filter_Config{
+					Config: config,
 				},
 			}},
 		},
 	}
-	return &listener.Listener{
+	return &v2.Listener{
 		Name: "default_listener",
 		Address: &core.Address{
 			Address: &core.Address_SocketAddress{
