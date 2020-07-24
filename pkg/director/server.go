@@ -9,7 +9,7 @@ import (
 
 	"github.com/Shikugawa/pcp/pkg/filter"
 	"github.com/Shikugawa/pcp/pkg/manager"
-	node "github.com/Shikugawa/pcp/pkg/nodes"
+	"github.com/Shikugawa/pcp/pkg/nodes"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 )
 
@@ -99,7 +99,7 @@ func (s *Server) nodes(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	var nodesStr []string
-	for _, node := range node.Nodes {
+	for _, node := range nodes.ManagedNodes.GetAll() {
 		nodesStr = append(nodesStr, node.Cluster+"/"+node.Id)
 	}
 

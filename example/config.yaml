@@ -1,0 +1,6 @@
+runtime: "envoy.wasm.runtime.v8"
+nodes:
+  - cluster: "cluster.local"
+    id: "node_0"
+  - cluster: "cluster.local"
+    id: "node_1"

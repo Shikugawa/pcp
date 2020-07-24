@@ -8,12 +8,12 @@ import (
 
 	"github.com/Shikugawa/pcp/pkg/factory"
 	"github.com/Shikugawa/pcp/pkg/filter"
+	"github.com/Shikugawa/pcp/pkg/nodes"
 	"github.com/Shikugawa/pcp/pkg/snapshot"
 )
 
-const wasmRuntime = "envoy.wasm.runtime.v8"
-
 var (
+	wasmRuntime            = "envoy.wasm.runtime.v8"
 	wasmFilterChainFactory = factory.NewHttpWasmFilterChainFactory(wasmRuntime)
 	httpFilterChainFactory = factory.NewHttpFilterChainFactory(wasmFilterChainFactory)
 	httpConnManagerFactory = factory.NewHttpConnectionManagerFactory(httpFilterChainFactory)
@@ -27,9 +27,11 @@ type EnvoyFilterManager struct {
 	Storage                    *filter.FilterStorage
 }
 
-func NewEnvoyFilterManager(defaultNodes []*core.Node) *EnvoyFilterManager {
+func NewEnvoyFilterManager(runtime string) *EnvoyFilterManager {
+	wasmRuntime = runtime
+
 	snap := snapshot.InitSnapShot()
-	snap.DefaultCache(defaultNodes, listenerFactory.Create())
+	snap.DefaultCache(nodes.ManagedNodes.GetAll(), listenerFactory.Create())
 
 	manager := &EnvoyFilterManager{
 		registeredFilterSpecifiers: []filter.FilterSpecifier{},
@@ -40,7 +42,7 @@ func NewEnvoyFilterManager(defaultNodes []*core.Node) *EnvoyFilterManager {
 	return manager
 }
 
-func (h *EnvoyFilterManager) Append(filterType string, filterName string, nodes []*core.Node) error {
+func (h *EnvoyFilterManager) Append(filterType string, filterName string, targetNodes []*core.Node) error {
 	specifier := filter.FilterSpecifier{
 		FilterType: filterType,
 		FilterName: filterName,
@@ -59,19 +61,24 @@ func (h *EnvoyFilterManager) Append(filterType string, filterName string, nodes 
 	h.SnapShot.Version = nextVersion
 	h.addRegisteredFilter(specifier)
 
-	for _, node := range nodes {
-		log.Println("Update " + node.Cluster + "/" + node.Id)
+	actualNodes := []*core.Node{}
+	for _, targetNode := range targetNodes {
+		if !nodes.ManagedNodes.Exists(targetNode) {
+			continue
+		}
+		actualNodes = append(actualNodes, targetNode)
+		log.Println("Update " + nodes.NodeToString(targetNode))
 		log.Println(h.registeredFilterSpecifiers)
 	}
 
 	wasmFilterChainFactory.Filters = h.registeredFilterSpecifiers
 	listener := listenerFactory.Create()
 
-	h.SnapShot.UpdateListener(listener, nodes, string(h.SnapShot.Version))
+	h.SnapShot.UpdateListener(listener, actualNodes, string(h.SnapShot.Version))
 	return nil
 }
 
-func (h *EnvoyFilterManager) RemoveFilter(filterType string, filterName string, nodes []*core.Node) error {
+func (h *EnvoyFilterManager) RemoveFilter(filterType string, filterName string, targetNodes []*core.Node) error {
 	specifier := filter.FilterSpecifier{
 		FilterType: filterType,
 		FilterName: filterName,
@@ -85,15 +92,20 @@ func (h *EnvoyFilterManager) RemoveFilter(filterType string, filterName string, 
 	h.SnapShot.Version = nextVersion
 	h.removeRegisteredFilter(specifier)
 
-	for _, node := range nodes {
-		log.Println("Update " + node.Cluster + "/" + node.Id)
+	actualNodes := []*core.Node{}
+	for _, targetNode := range targetNodes {
+		if !nodes.ManagedNodes.Exists(targetNode) {
+			continue
+		}
+		actualNodes = append(actualNodes, targetNode)
+		log.Println("Update " + nodes.NodeToString(targetNode))
 		log.Println(h.registeredFilterSpecifiers)
 	}
 
 	wasmFilterChainFactory.Filters = h.registeredFilterSpecifiers
 	listener := listenerFactory.Create()
 
-	h.SnapShot.UpdateListener(listener, nodes, string(h.SnapShot.Version))
+	h.SnapShot.UpdateListener(listener, actualNodes, string(h.SnapShot.Version))
 
 	return nil
 }
