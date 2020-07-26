@@ -57,6 +57,16 @@ func NewFilterStorage(path string) *FilterStorage {
 	return storage
 }
 
+func (f *FilterStorage) GetAll() []*FilterSpecifier {
+	var specifiers []*FilterSpecifier
+	for dir, _ := range f.filters {
+		if spec := wasmCodeDirToSpecifier(dir); spec != nil {
+			specifiers = append(specifiers, spec)
+		}
+	}
+	return specifiers
+}
+
 func (f *FilterStorage) Add(filter FilterSpecifier, wasmCode []byte) error {
 	if _, err := os.Stat(wasmCodeDir(filter)); os.IsNotExist(err) {
 		if err = os.Mkdir(wasmCodeDir(filter), 0644); err != nil {
