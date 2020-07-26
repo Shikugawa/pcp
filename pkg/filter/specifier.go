@@ -3,8 +3,8 @@ package filter
 import "fmt"
 
 type FilterSpecifier struct {
-	FilterType string
-	FilterName string
+	FilterType string `json:"filter_type"`
+	FilterName string `json:"filter_name"`
 }
 
 func (f *FilterSpecifier) String() string {

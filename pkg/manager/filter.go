@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -48,13 +49,11 @@ func (h *EnvoyFilterManager) Append(filterType string, filterName string, target
 		FilterName: filterName,
 	}
 	if h.existFilter(specifier) {
-		log.Println(fmt.Sprintf("%s is already registered", specifier.String()))
-		return nil
+		return errors.New(fmt.Sprintf("%s is already registered", specifier.String()))
 	}
 
 	if !h.Storage.ExistFilter(specifier) {
-		log.Println(fmt.Sprintf("%s is not already uploaded", specifier.String()))
-		return nil
+		return errors.New(fmt.Sprintf("%s is already uploaded", specifier.String()))
 	}
 
 	nextVersion := h.SnapShot.Version + 1
@@ -84,8 +83,7 @@ func (h *EnvoyFilterManager) RemoveFilter(filterType string, filterName string, 
 		FilterName: filterName,
 	}
 	if !h.existFilter(specifier) {
-		log.Println(fmt.Sprintf("%s isn't registered", specifier.String()))
-		return nil
+		return errors.New(fmt.Sprintf("%s isn't registered", specifier.String()))
 	}
 
 	nextVersion := h.SnapShot.Version + 1

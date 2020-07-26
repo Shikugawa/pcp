@@ -49,7 +49,7 @@ func (s *Server) enableFilter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.envoyFilterManager.Append(request.FilterType, request.FilterName, targetNodes); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -83,7 +83,7 @@ func (s *Server) disableFilter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.envoyFilterManager.RemoveFilter(request.FilterType, request.FilterName, targetNodes); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -100,7 +100,7 @@ func (s *Server) nodes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var nodesStr []string
 	for _, node := range nodes.ManagedNodes.GetAll() {
-		nodesStr = append(nodesStr, node.Cluster+"/"+node.Id)
+		nodesStr = append(nodesStr, nodes.NodeToString(node))
 	}
 
 	resp, err := json.Marshal(&NodesResponse{
@@ -145,6 +145,31 @@ func (s *Server) uploadWasm(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func (s *Server) listFilters(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	filters := make([]filter.FilterSpecifier, 0)
+	for _, f := range s.envoyFilterManager.Storage.GetAll() {
+		filters = append(filters, filter.FilterSpecifier{
+			FilterName: f.FilterName, FilterType: f.FilterType,
+		})
+	}
+
+	resp, err := json.Marshal(&WasmListResponse{
+		Filters: filters,
+	})
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf("%s\n", string(resp))))
+	return
+}
+
 func (s *Server) Start(port string) *http.Server {
 	mux := http.NewServeMux()
 
@@ -152,6 +177,7 @@ func (s *Server) Start(port string) *http.Server {
 	mux.HandleFunc("/disable", s.disableFilter)
 	mux.HandleFunc("/nodes", s.nodes)
 	mux.HandleFunc("/upload", s.uploadWasm)
+	mux.HandleFunc("/filters", s.listFilters)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
