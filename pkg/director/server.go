@@ -35,14 +35,14 @@ func (s *Server) enableFilter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var targetNodes []*core.Node
+	var targetNodes []core.Node
 	for _, nodes := range request.Nodes {
 		slicedNodes := strings.Split(nodes, "/")
 		if len(slicedNodes) != 2 {
 			continue
 		}
 
-		targetNodes = append(targetNodes, &core.Node{
+		targetNodes = append(targetNodes, core.Node{
 			Cluster: slicedNodes[0],
 			Id:      slicedNodes[1],
 		})
@@ -69,14 +69,14 @@ func (s *Server) disableFilter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var targetNodes []*core.Node
+	var targetNodes []core.Node
 	for _, nodes := range request.Nodes {
 		slicedNodes := strings.Split(nodes, "/")
 		if len(slicedNodes) != 2 {
 			continue
 		}
 
-		targetNodes = append(targetNodes, &core.Node{
+		targetNodes = append(targetNodes, core.Node{
 			Cluster: slicedNodes[0],
 			Id:      slicedNodes[1],
 		})
@@ -98,13 +98,26 @@ func (s *Server) nodes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	var nodesStr []string
-	for _, node := range nodes.ManagedNodes.GetAll() {
-		nodesStr = append(nodesStr, nodes.NodeToString(node))
-	}
+	nodeInfos := make([]NodeInfo, 0)
+
+	s.envoyFilterManager.ManagedNodes.GetAll().Each(func(n interface{}) bool {
+		node := nodes.StringToNode(n.(string))
+		filters := make([]string, 0)
+		s.envoyFilterManager.NodeFilters.Filters(node).Each(func(f interface{}) bool {
+			filters = append(filters, f.(string))
+			return false
+		})
+
+		nodeInfos = append(nodeInfos, NodeInfo{
+			Cluster: node.Cluster,
+			Id:      node.Id,
+			Filters: filters,
+		})
+		return false
+	})
 
 	resp, err := json.Marshal(&NodesResponse{
-		Nodes: nodesStr,
+		Nodes: nodeInfos,
 	})
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

@@ -17,13 +17,13 @@ import (
 
 type HttpWasmFilterChainFactory struct {
 	DefaultRuntime string
-	Filters        []filter.FilterSpecifier
+	Filters        []*filter.FilterSpecifier
 }
 
 func NewHttpWasmFilterChainFactory(defaultRuntime string) *HttpWasmFilterChainFactory {
 	return &HttpWasmFilterChainFactory{
 		DefaultRuntime: defaultRuntime,
-		Filters:        make([]filter.FilterSpecifier, 0),
+		Filters:        make([]*filter.FilterSpecifier, 0),
 	}
 }
 

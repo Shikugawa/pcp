@@ -6,11 +6,11 @@ import (
 	"strings"
 )
 
-func WasmCodePath(filter FilterSpecifier) string {
+func WasmCodePath(filter *FilterSpecifier) string {
 	return wasmRegistoryPath + "/" + filter.FilterType + "/" + filter.FilterName + ".wasm"
 }
 
-func wasmCodeDir(filter FilterSpecifier) string {
+func wasmCodeDir(filter *FilterSpecifier) string {
 	return wasmRegistoryPath + "/" + filter.FilterType
 }
 

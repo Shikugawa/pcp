@@ -13,7 +13,6 @@ import (
 	"github.com/Shikugawa/pcp/pkg/config"
 	"github.com/Shikugawa/pcp/pkg/director"
 	"github.com/Shikugawa/pcp/pkg/manager"
-	"github.com/Shikugawa/pcp/pkg/nodes"
 	"github.com/Shikugawa/pcp/pkg/xds"
 )
 
@@ -23,12 +22,6 @@ func readConfig(configPath string) ([]byte, error) {
 		return nil, err
 	}
 	return res, nil
-}
-
-func loadNodes(attachedNodes []config.Node) {
-	for _, node := range attachedNodes {
-		nodes.ManagedNodes.AddNode(node.Cluster, node.Id)
-	}
 }
 
 func main() {
@@ -51,8 +44,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	loadNodes(parsedConfig.Nodes)
-	manager := manager.NewEnvoyFilterManager(parsedConfig.Runtime, parsedConfig.StoragePath)
+	manager := manager.NewEnvoyFilterManager(parsedConfig.Runtime, parsedConfig.StoragePath, parsedConfig.Nodes)
 
 	director := director.NewServer(manager).Start(admin)
 	xdsServer := xds.NewServer(manager).Start(listen)

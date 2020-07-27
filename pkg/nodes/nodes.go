@@ -3,37 +3,39 @@ package nodes
 import (
 	"sync"
 
+	set "github.com/deckarep/golang-set"
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 )
 
-type ManagedNodesType struct {
-	nodes []*core.Node
+type ManagedNodes struct {
+	nodes set.Set
 	mux   sync.RWMutex
 }
 
-func (m *ManagedNodesType) AddNode(clusterName string, nodeId string) {
+func NewManagedNodes() *ManagedNodes {
+	return &ManagedNodes{nodes: set.NewSet(), mux: sync.RWMutex{}}
+}
+
+func (m *ManagedNodes) AddNode(clusterName string, nodeId string) {
 	node := &core.Node{
 		Cluster: clusterName,
 		Id:      nodeId,
 	}
 	m.mux.Lock()
 	defer m.mux.Unlock()
-	m.nodes = append(m.nodes, node)
+	m.nodes.Add(NodeToString(node))
 }
 
-func (m *ManagedNodesType) Exists(checkNode *core.Node) bool {
-	for _, node := range m.nodes {
-		if node.Cluster == checkNode.Cluster && node.Id == checkNode.Id {
-			return true
-		}
+func (m *ManagedNodes) Exists(clusterName string, nodeId string) bool {
+	node := &core.Node{
+		Cluster: clusterName,
+		Id:      nodeId,
 	}
-	return false
+	return m.nodes.Contains(NodeToString(node))
 }
 
-func (m *ManagedNodesType) GetAll() []*core.Node {
+func (m *ManagedNodes) GetAll() set.Set {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 	return m.nodes
 }
-
-var ManagedNodes = &ManagedNodesType{nodes: make([]*core.Node, 0), mux: sync.RWMutex{}}

@@ -7,6 +7,7 @@ import (
 
 	core "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 
+	"github.com/Shikugawa/pcp/pkg/config"
 	"github.com/Shikugawa/pcp/pkg/factory"
 	"github.com/Shikugawa/pcp/pkg/filter"
 	"github.com/Shikugawa/pcp/pkg/nodes"
@@ -23,111 +24,116 @@ var (
 )
 
 type EnvoyFilterManager struct {
-	registeredFilterSpecifiers []filter.FilterSpecifier
-	SnapShot                   *snapshot.SnapShot
-	Storage                    *filter.FilterStorage
+	NodeFilters  *nodes.NodeFilters
+	ManagedNodes *nodes.ManagedNodes
+	SnapShot     *snapshot.SnapShot
+	Storage      *filter.FilterStorage
 }
 
-func NewEnvoyFilterManager(runtime string, wasmStoragePath string) *EnvoyFilterManager {
+func NewEnvoyFilterManager(runtime string, wasmStoragePath string, defaultNodes []config.Node) *EnvoyFilterManager {
 	wasmRuntime = runtime
+	managedNodes := nodes.NewManagedNodes()
+	for _, node := range defaultNodes {
+		managedNodes.AddNode(node.Cluster, node.Id)
+	}
 
 	snap := snapshot.InitSnapShot()
-	snap.DefaultCache(nodes.ManagedNodes.GetAll(), listenerFactory.Create())
+	var nodesSlice []*core.Node
+	managedNodes.GetAll().Each(func(n interface{}) bool {
+		nodesSlice = append(nodesSlice, nodes.StringToNode(n.(string)))
+		return false
+	})
+
+	snap.DefaultCache(nodesSlice, listenerFactory.Create())
 
 	manager := &EnvoyFilterManager{
-		registeredFilterSpecifiers: []filter.FilterSpecifier{},
-		SnapShot:                   &snap,
-		Storage:                    filter.NewFilterStorage(wasmStoragePath),
+		NodeFilters:  nodes.NewNodeFilters(),
+		ManagedNodes: managedNodes,
+		SnapShot:     &snap,
+		Storage:      filter.NewFilterStorage(wasmStoragePath),
 	}
 
 	return manager
 }
 
-func (h *EnvoyFilterManager) Append(filterType string, filterName string, targetNodes []*core.Node) error {
+func (h *EnvoyFilterManager) Append(filterType string, filterName string, targetNodes []core.Node) error {
 	specifier := filter.FilterSpecifier{
 		FilterType: filterType,
 		FilterName: filterName,
-	}
-	if h.existFilter(specifier) {
-		return errors.New(fmt.Sprintf("%s is already registered", specifier.String()))
 	}
 
 	if !h.Storage.ExistFilter(specifier) {
-		return errors.New(fmt.Sprintf("%s is already uploaded", specifier.String()))
+		return errors.New(fmt.Sprintf("%s haven't uploaded yet", specifier.String()))
 	}
 
 	nextVersion := h.SnapShot.Version + 1
 	h.SnapShot.Version = nextVersion
-	h.addRegisteredFilter(specifier)
 
-	actualNodes := []*core.Node{}
 	for _, targetNode := range targetNodes {
-		if !nodes.ManagedNodes.Exists(targetNode) {
+		if !h.ManagedNodes.Exists(targetNode.Cluster, targetNode.Id) {
+			log.Println(nodes.NodeToString(&targetNode) + " not found")
 			continue
 		}
-		actualNodes = append(actualNodes, targetNode)
-		log.Println("Update " + nodes.NodeToString(targetNode))
-		log.Println(h.registeredFilterSpecifiers)
+
+		if h.NodeFilters.IsRegistered(&targetNode, specifier) {
+			log.Println(specifier.String() + " had been already registered to " + nodes.NodeToString(&targetNode))
+			continue
+		}
+
+		h.NodeFilters.Add(&targetNode, specifier)
+		h.NodeFilters.Filters(&targetNode).Each(func(f interface{}) bool {
+			stringSpecifier := f.(string)
+			wasmFilterChainFactory.Filters = append(wasmFilterChainFactory.Filters, filter.StringToSpecifier(stringSpecifier))
+			return false
+		})
+
+		listener := listenerFactory.Create()
+		if err := h.SnapShot.UpdateListener(listener, &targetNode, string(h.SnapShot.Version)); err != nil {
+			log.Println("Failed to update " + nodes.NodeToString(&targetNode))
+			continue
+		}
+
+		log.Println("Update " + nodes.NodeToString(&targetNode))
 	}
 
-	wasmFilterChainFactory.Filters = h.registeredFilterSpecifiers
-	listener := listenerFactory.Create()
-
-	h.SnapShot.UpdateListener(listener, actualNodes, string(h.SnapShot.Version))
 	return nil
 }
 
-func (h *EnvoyFilterManager) RemoveFilter(filterType string, filterName string, targetNodes []*core.Node) error {
+func (h *EnvoyFilterManager) RemoveFilter(filterType string, filterName string, targetNodes []core.Node) error {
 	specifier := filter.FilterSpecifier{
 		FilterType: filterType,
 		FilterName: filterName,
 	}
-	if !h.existFilter(specifier) {
-		return errors.New(fmt.Sprintf("%s isn't registered", specifier.String()))
-	}
 
 	nextVersion := h.SnapShot.Version + 1
 	h.SnapShot.Version = nextVersion
-	h.removeRegisteredFilter(specifier)
 
-	actualNodes := []*core.Node{}
 	for _, targetNode := range targetNodes {
-		if !nodes.ManagedNodes.Exists(targetNode) {
+		if !h.ManagedNodes.Exists(targetNode.Cluster, targetNode.Id) {
+			log.Println(nodes.NodeToString(&targetNode) + " not found")
 			continue
 		}
-		actualNodes = append(actualNodes, targetNode)
-		log.Println("Update " + nodes.NodeToString(targetNode))
-		log.Println(h.registeredFilterSpecifiers)
+
+		if !h.NodeFilters.IsRegistered(&targetNode, specifier) {
+			log.Println(specifier.String() + " had not been registered to " + nodes.NodeToString(&targetNode) + " yet")
+			continue
+		}
+
+		h.NodeFilters.Remove(&targetNode, specifier)
+		h.NodeFilters.Filters(&targetNode).Each(func(f interface{}) bool {
+			stringSpecifier := f.(string)
+			wasmFilterChainFactory.Filters = append(wasmFilterChainFactory.Filters, filter.StringToSpecifier(stringSpecifier))
+			return false
+		})
+
+		listener := listenerFactory.Create()
+		if err := h.SnapShot.UpdateListener(listener, &targetNode, string(h.SnapShot.Version)); err != nil {
+			log.Println("Failed to update " + nodes.NodeToString(&targetNode))
+			continue
+		}
+
+		log.Println("Update " + nodes.NodeToString(&targetNode))
 	}
-
-	wasmFilterChainFactory.Filters = h.registeredFilterSpecifiers
-	listener := listenerFactory.Create()
-
-	h.SnapShot.UpdateListener(listener, actualNodes, string(h.SnapShot.Version))
 
 	return nil
-}
-
-func (h *EnvoyFilterManager) addRegisteredFilter(specifier filter.FilterSpecifier) {
-	h.registeredFilterSpecifiers = append(h.registeredFilterSpecifiers, specifier)
-}
-
-func (h *EnvoyFilterManager) removeRegisteredFilter(specifier filter.FilterSpecifier) {
-	var updatedFilters []filter.FilterSpecifier
-	for _, registeredSpecifier := range h.registeredFilterSpecifiers {
-		if specifier.FilterName == registeredSpecifier.FilterName && specifier.FilterType == registeredSpecifier.FilterType {
-			continue
-		}
-		updatedFilters = append(updatedFilters, registeredSpecifier)
-	}
-	h.registeredFilterSpecifiers = updatedFilters
-}
-
-func (h *EnvoyFilterManager) existFilter(filter filter.FilterSpecifier) bool {
-	for _, specifier := range h.registeredFilterSpecifiers {
-		if filter.FilterName == specifier.FilterName && filter.FilterType == specifier.FilterType {
-			return true
-		}
-	}
-	return false
 }

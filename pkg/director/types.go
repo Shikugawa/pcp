@@ -1,6 +1,8 @@
 package director
 
-import "github.com/Shikugawa/pcp/pkg/filter"
+import (
+	"github.com/Shikugawa/pcp/pkg/filter"
+)
 
 type UpdateFilterRequest struct {
 	FilterType string   `json:"filter_type"`
@@ -8,8 +10,14 @@ type UpdateFilterRequest struct {
 	Nodes      []string `json:"nodes"`
 }
 
+type NodeInfo struct {
+	Cluster string   `json:"cluster"`
+	Id      string   `json:"id"`
+	Filters []string `json:"filters"`
+}
+
 type NodesResponse struct {
-	Nodes []string `json:"nodes"`
+	Nodes []NodeInfo `json:"nodes"`
 }
 
 type WasmUploadRequest struct {
