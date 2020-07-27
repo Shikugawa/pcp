@@ -123,17 +123,17 @@ func (h *HttpConnectionManagerFactory) Create() *hcm.HttpConnectionManager {
 	}
 }
 
-type ListenerFilterFactory struct {
+type HttpConnManagerListenerFilterFactory struct {
 	httpConnManagerFactory *HttpConnectionManagerFactory
 }
 
-func NewListenerFilterFactory(httpConnManagerFactory *HttpConnectionManagerFactory) *ListenerFilterFactory {
-	return &ListenerFilterFactory{
+func NewLHttpConnManagerListenerFilterFactory(httpConnManagerFactory *HttpConnectionManagerFactory) *HttpConnManagerListenerFilterFactory {
+	return &HttpConnManagerListenerFilterFactory{
 		httpConnManagerFactory: httpConnManagerFactory,
 	}
 }
 
-func (l *ListenerFilterFactory) Create() *listener.Filter {
+func (l *HttpConnManagerListenerFilterFactory) Create() *listener.Filter {
 	connManager := l.httpConnManagerFactory.Create()
 	config, _ := conversion.MessageToStruct(connManager)
 
@@ -146,30 +146,30 @@ func (l *ListenerFilterFactory) Create() *listener.Filter {
 }
 
 type ListenerFactory struct {
-	listenerFilterFactory *ListenerFilterFactory
+	httpConnManagerListenerFilterFactory *HttpConnManagerListenerFilterFactory
 }
 
-func NewListenerFactory(listenerFilterFactory *ListenerFilterFactory) *ListenerFactory {
+func NewListenerFactory(HttpConnManagerListenerFilterFactory *HttpConnManagerListenerFilterFactory) *ListenerFactory {
 	return &ListenerFactory{
-		listenerFilterFactory: listenerFilterFactory,
+		httpConnManagerListenerFilterFactory: HttpConnManagerListenerFilterFactory,
 	}
 }
 
-func (l *ListenerFactory) Create() *v2.Listener {
+func (l *ListenerFactory) Create(name string, host string, port uint32) *v2.Listener {
 	listenerFilterChains := []*listener.FilterChain{
 		{
-			Filters: []*listener.Filter{l.listenerFilterFactory.Create()},
+			Filters: []*listener.Filter{l.httpConnManagerListenerFilterFactory.Create()},
 		},
 	}
 
 	return &v2.Listener{
-		Name: "default_listener",
+		Name: name,
 		Address: &core.Address{
 			Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{
-					Address: "0.0.0.0",
+					Address: host,
 					PortSpecifier: &core.SocketAddress_PortValue{
-						PortValue: 5000,
+						PortValue: port,
 					},
 				},
 			},

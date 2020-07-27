@@ -15,12 +15,15 @@ import (
 )
 
 var (
-	wasmRuntime            = "envoy.wasm.runtime.v8"
-	wasmFilterChainFactory = factory.NewHttpWasmFilterChainFactory(wasmRuntime)
-	httpFilterChainFactory = factory.NewHttpFilterChainFactory(wasmFilterChainFactory)
-	httpConnManagerFactory = factory.NewHttpConnectionManagerFactory(httpFilterChainFactory)
-	listenerFilterFactory  = factory.NewListenerFilterFactory(httpConnManagerFactory)
-	listenerFactory        = factory.NewListenerFactory(listenerFilterFactory)
+	listenerName                         = "default_listener"
+	listenerHost                         = "0.0.0.0"
+	listenerPort                         = 5000
+	wasmRuntime                          = "envoy.wasm.runtime.v8"
+	wasmFilterChainFactory               = factory.NewHttpWasmFilterChainFactory(wasmRuntime)
+	httpFilterChainFactory               = factory.NewHttpFilterChainFactory(wasmFilterChainFactory)
+	httpConnManagerFactory               = factory.NewHttpConnectionManagerFactory(httpFilterChainFactory)
+	httpConnManagerListenerFilterFactory = factory.NewLHttpConnManagerListenerFilterFactory(httpConnManagerFactory)
+	listenerFactory                      = factory.NewListenerFactory(httpConnManagerListenerFilterFactory)
 )
 
 type EnvoyFilterManager struct {
@@ -38,13 +41,14 @@ func NewEnvoyFilterManager(runtime string, wasmStoragePath string, defaultNodes 
 	}
 
 	snap := snapshot.InitSnapShot()
+
 	var nodesSlice []*core.Node
 	managedNodes.GetAll().Each(func(n interface{}) bool {
 		nodesSlice = append(nodesSlice, nodes.StringToNode(n.(string)))
 		return false
 	})
 
-	snap.DefaultCache(nodesSlice, listenerFactory.Create())
+	snap.DefaultCache(nodesSlice, listenerFactory.Create(listenerName, listenerHost, uint32(listenerPort)))
 
 	manager := &EnvoyFilterManager{
 		NodeFilters:  nodes.NewNodeFilters(),
@@ -87,7 +91,9 @@ func (h *EnvoyFilterManager) Append(filterType string, filterName string, target
 			return false
 		})
 
-		listener := listenerFactory.Create()
+		listener := listenerFactory.Create(listenerName, listenerHost, uint32(listenerPort))
+		wasmFilterChainFactory.Filters = wasmFilterChainFactory.Filters[:0]
+
 		if err := h.SnapShot.UpdateListener(listener, &targetNode, string(h.SnapShot.Version)); err != nil {
 			log.Println("Failed to update " + nodes.NodeToString(&targetNode))
 			continue
@@ -118,15 +124,19 @@ func (h *EnvoyFilterManager) RemoveFilter(filterType string, filterName string, 
 			log.Println(specifier.String() + " had not been registered to " + nodes.NodeToString(&targetNode) + " yet")
 			continue
 		}
+		fmt.Println(h.NodeFilters.Filters(&targetNode).Cardinality())
 
 		h.NodeFilters.Remove(&targetNode, specifier)
+		fmt.Println(h.NodeFilters.Filters(&targetNode).Cardinality())
 		h.NodeFilters.Filters(&targetNode).Each(func(f interface{}) bool {
 			stringSpecifier := f.(string)
 			wasmFilterChainFactory.Filters = append(wasmFilterChainFactory.Filters, filter.StringToSpecifier(stringSpecifier))
 			return false
 		})
 
-		listener := listenerFactory.Create()
+		listener := listenerFactory.Create(listenerName, listenerHost, uint32(listenerPort))
+		wasmFilterChainFactory.Filters = wasmFilterChainFactory.Filters[:0]
+
 		if err := h.SnapShot.UpdateListener(listener, &targetNode, string(h.SnapShot.Version)); err != nil {
 			log.Println("Failed to update " + nodes.NodeToString(&targetNode))
 			continue
