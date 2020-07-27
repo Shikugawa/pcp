@@ -124,10 +124,8 @@ func (h *EnvoyFilterManager) RemoveFilter(filterType string, filterName string, 
 			log.Println(specifier.String() + " had not been registered to " + nodes.NodeToString(&targetNode) + " yet")
 			continue
 		}
-		fmt.Println(h.NodeFilters.Filters(&targetNode).Cardinality())
 
 		h.NodeFilters.Remove(&targetNode, specifier)
-		fmt.Println(h.NodeFilters.Filters(&targetNode).Cardinality())
 		h.NodeFilters.Filters(&targetNode).Each(func(f interface{}) bool {
 			stringSpecifier := f.(string)
 			wasmFilterChainFactory.Filters = append(wasmFilterChainFactory.Filters, filter.StringToSpecifier(stringSpecifier))
